@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Check-In</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fafafa;}
+        .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0 20px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; background: white;}
+        label { font-weight: bold; display: block; text-align: left; color: #444; }
+        button { width: 100%; padding: 12px; background: #0070f3; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="formContainer">
+        <h2>Class Check-In</h2>
+        
+        <label for="studentName">Name</label>
+        <input type="text" id="studentName" placeholder="Enter full name" required>
+        
+        <label for="participation">Are you going to participate actively?</label>
+        <select id="participation">
+            <option value="yes">Yes, absolutely!</option>
+            <option value="no">No, I prefer to just listen today.</option>
+        </select>
+
+        <button onclick="submitName()">Join Roster</button>
+    </div>
+
+    <script>
+        const socket = io();
+        function submitName() {
+            const name = document.getElementById('studentName').value.trim();
+            const active = document.getElementById('participation').value;
+            
+            if (name) {
+                socket.emit('studentJoin', { name, active });
+                document.getElementById('formContainer').innerHTML = `<h2>🎉 Registered!</h2><p>Find your seat on the projector screen shortly.</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

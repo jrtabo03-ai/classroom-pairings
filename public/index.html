@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Dashboard (3 Columns x 12 Rows)</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 20px; background: #f4f6f9; }
+        .controls { margin-bottom: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; background: #0070f3; color: white; margin-right: 10px;}
+        button.reset { background: #ff4d4d; }
+        
+        .front-indicator {
+            text-align: center;
+            background: #e1e4e8;
+            padding: 10px;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            color: #555;
+        }
+
+        /* 3 Columns Grid Layout */
+        .seating-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 15px; 
+        }
+        .desk-pair { 
+            background: white; 
+            border: 2px solid #e1e4e8; grade-radius: 8px; 
+            padding: 15px; 
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            min-height: 85px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .desk-pair h4 { margin: 0 0 8px 0; color: #888; font-size: 11px; text-transform: uppercase; }
+        .student-name { font-weight: bold; font-size: 16px; color: #333; margin: 2px 0; }
+        .passive-pair { border-color: #ff9800 !important; background: #fffde7; }
+        .roster { color: #666; font-size: 14px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>Classroom Grid Dashboard</h1>
+    
+    <div class="controls">
+        <button onclick="assignPairs()">🎲 Assign Pairs</button>
+        <button class="reset" onclick="resetClass()">🧹 Clear All</button>
+    </div>
+
+    <div class="roster">Students Checked In: <span id="count">0</span></div>
+
+    <div class="front-indicator">🎬 FRONT OF ROOM / BOARD 🎬</div>
+
+    <div class="seating-grid" id="seatingGrid"></div>
+
+    <script>
+        const socket = io();
+
+        socket.on('updateStudents', (students) => {
+            document.getElementById('count').innerText = students.length;
+        });
+
+        socket.on('updatePairs', (pairs) => {
+            const grid = document.getElementById('seatingGrid');
+            grid.innerHTML = ''; 
+
+            // 36 total desks (3 columns x 12 rows)
+            for (let i = 0; i < 36; i++) {
+                const desk = document.createElement('div');
+                desk.className = 'desk-pair';
+                
+                const rowNum = Math.floor(i / 3) + 1;
+                const colNum = (i % 3) + 1;
+                
+                let content = `<h4>Row ${rowNum} - Column ${colNum}</h4>`;
+                
+                if (pairs[i]) {
+                    content += `<div class="student-name">${pairs[i][0]}</div>`;
+                    content += `<div class="student-name">${pairs[i][1]}</div>`;
+                    
+                    // Style passive pairs sitting at the back
+                    if (pairs[i][0].includes('(Passive)') || pairs[i][1].includes('(Passive)')) {
+                        desk.className += ' passive-pair';
+                    } else {
+                        desk.style.borderColor = '#0070f3';
+                    }
+                } else {
+                    content += `<div style="color: #ccc; font-style: italic; font-size: 13px;">Empty</div>`;
+                    desk.style.opacity = '0.5';
+                }
+                
+                desk.innerHTML = content;
+                grid.appendChild(desk);
+            }
+        });
+
+        function assignPairs() { socket.emit('generatePairs'); }
+        function resetClass() { socket.emit('resetClass'); }
+    </script>
+</body>
+</html>
