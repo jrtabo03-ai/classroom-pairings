@@ -38,7 +38,15 @@
             
             if (name) {
                 socket.emit('studentJoin', { name, active });
-                document.getElementById('formContainer').innerHTML = `<h2>🎉 Registered!</h2><p>Find your seat on the projector screen shortly.</p>`;
+                // Updated success screen with a direct link to the seating chart
+                document.getElementById('formContainer').innerHTML = `
+                <h2>🎉 Registered!</h2>
+                <p>Your details have been saved.</p>
+                <br>
+                <a href="/seating.html" style="display: block; padding: 12px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    👀 View Seating Chart
+                </a>
+                ';
             }
         }
     </script>
