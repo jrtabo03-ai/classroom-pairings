@@ -1,124 +1,198 @@
-const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
-
-let students = [];
-let pairs = [];
-
-app.use(express.static('public'));
-
-io.on('connection', (socket) => {
-    socket.emit('updateStudents', students);
-    socket.emit('updatePairs', pairs);
-
-    socket.on('studentJoin', (data) => {
-        const { name, active } = data;
-        if (name && !students.some(s => s.name === name)) {
-            students.push({ 
-                name, 
-                active: active === 'yes',
-                choiceText: active === 'yes' ? 'Yes (Active)' : 'No (Passive)'
-            });
-            io.emit('updateStudents', students);
-        }
-    });
-
-    // Handle Manual Seating Overrides from Teacher Dashboard
-    socket.on('manualSeatEdit', (data) => {
-        const { deskIndex, name1, name2 } = data;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Dashboard (3 Columns x 12 Rows)</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 20px; background: #f4f6f9; user-select: none;}
+        .controls { margin-bottom: 10px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; background: #0070f3; color: white; margin-right: 10px;}
+        button.reset { background: #ff4d4d; }
+        button.download { background: #28a745; }
+        button.flip { background: #6f42c1; }
         
-        // Initialize pairs array if empty
-        if (pairs.length === 0) {
-            pairs = new Array(36).fill(null);
-        }
+        .hint-text { color: #666; font-size: 13px; margin-bottom: 15px; font-style: italic; }
 
-        // 1. Update the seating desk arrangement memory
-        if (!name1 && !name2) {
-            pairs[deskIndex] = null; // Desk cleared completely
-        } else {
-            pairs[deskIndex] = [name1 || "Empty", name2 || "Empty"];
+        .front-indicator {
+            text-align: center;
+            background: #e1e4e8;
+            padding: 10px;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            color: #555;
+            transition: all 0.3s ease;
         }
+        .front-indicator.flipped { background: #343a40; color: #fff; }
 
-        // 2. Add any newly entered manual names to the master student list for CSV downloads
-        [name1, name2].forEach(name => {
-            if (name && name !== "Empty" && !name.includes("Lone Wolf") && !students.some(s => s.name === name)) {
-                students.push({
-                    name: name,
-                    active: true,
-                    choiceText: 'Manual Add (Active)'
-                });
-            }
+        .seating-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 15px; 
+        }
+        .desk-pair { 
+            background: white; 
+            border: 2px solid #e1e4e8; 
+            border-radius: 8px; 
+            padding: 15px; 
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            min-height: 85px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+        .desk-pair:hover { background: #fdfdfd; border-color: #b0b5bc; transform: scale(1.01); }
+        .desk-pair h4 { margin: 0 0 8px 0; color: #888; font-size: 11px; text-transform: uppercase; pointer-events: none;}
+        .student-name { font-weight: bold; font-size: 16px; color: #333; margin: 2px 0; pointer-events: none;}
+        .passive-pair { border-color: #ff9800 !important; background: #fffde7; }
+        .roster { color: #333; font-weight: bold; font-size: 15px; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>Classroom Grid Dashboard</h1>
+    
+    <div class="controls">
+        <button onclick="assignPairs()">🎲 Assign Pairs</button>
+        <button class="download" onclick="downloadRoster()">📥 Download Roster (CSV)</button>
+        <button class="flip" onclick="toggleFlip()">🔄 Flip View</button>
+        <button class="reset" onclick="resetClass()">🧹 Clear All</button>
+    </div>
+
+    <div class="roster">Students Checked In: <span id="count">0</span></div>
+    <div class="hint-text">💡 Tip: Double-click any desk cell to manually add, swap, or delete students!</div>
+
+    <div class="front-indicator" id="frontIndicator">🎬 FRONT OF ROOM / BOARD 🎬</div>
+
+    <div class="seating-grid" id="seatingGrid"></div>
+
+    <script>
+        const socket = io();
+        let currentStudentsList = [];
+        let savedPairsData = new Array(36).fill(null);
+        let isFlipped = false; 
+
+        socket.on('updateStudents', (students) => {
+            currentStudentsList = students;
+            document.getElementById('count').innerText = students.length;
         });
 
-        // 3. Broadcast real-time changes out to both Dashboard and Seating charts
-        io.emit('updatePairs', pairs);
-        io.emit('updateStudents', students);
-    });
+        socket.on('updatePairs', (pairs) => {
+            savedPairsData = pairs;
+            renderGrid();
+        });
 
-    socket.on('generatePairs', () => {
-        let activeStudents = students.filter(s => s.active);
-        let passiveStudents = students.filter(s => !s.active);
+        function renderGrid() {
+            const grid = document.getElementById('seatingGrid');
+            const indicator = document.getElementById('frontIndicator');
+            grid.innerHTML = ''; 
 
-        const shuffle = (array) => {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
+            if (isFlipped) {
+                indicator.innerText = "⬇️ FRONT OF ROOM / BOARD IS AT THE BOTTOM ⬇️";
+                indicator.className = "front-indicator flipped";
+            } else {
+                indicator.innerText = "🎬 FRONT OF ROOM / BOARD IS AT THE TOP 🎬";
+                indicator.className = "front-indicator";
             }
-            return array;
-        };
 
-        activeStudents = shuffle(activeStudents);
-        passiveStudents = shuffle(passiveStudents);
+            for (let i = 0; i < 36; i++) {
+                let index = isFlipped ? (35 - i) : i;
 
-        const chunkIntoPairs = (studentList, labelSuffix = "") => {
-            let chunked = [];
-            for (let i = 0; i < studentList.length; i += 2) {
-                if (studentList[i + 1]) {
-                    chunked.push([studentList[i].name, studentList[i + 1].name]);
+                const desk = document.createElement('div');
+                desk.className = 'desk-pair';
+                
+                // Attach custom dataset index tracking to capture target on double click
+                desk.setAttribute('data-index', index);
+                desk.ondblclick = handleManualEdit;
+                
+                const rowNum = Math.floor(index / 3) + 1;
+                const colNum = (index % 3) + 1;
+                
+                let content = `<h4>Row ${rowNum} - Column ${colNum}</h4>`;
+                
+                if (savedPairsData[index]) {
+                    content += `<div class="student-name">${savedPairsData[index][0]}</div>`;
+                    content += `<div class="student-name">${savedPairsData[index][1]}</div>`;
+                    
+                    if (savedPairsData[index][0].includes('(Passive)') || savedPairsData[index][1].includes('(Passive)')) {
+                        desk.className += ' passive-pair';
+                    } else {
+                        desk.style.borderColor = '#0070f3';
+                    }
                 } else {
-                    chunked.push([studentList[i].name, `Lone Wolf 🐺 ${labelSuffix}`]);
+                    content += `<div style="color: #ccc; font-style: italic; font-size: 13px;">Empty Desk</div>`;
+                    desk.style.opacity = '0.5';
                 }
+                
+                desk.innerHTML = content;
+                grid.appendChild(desk);
             }
-            return chunked;
-        };
+        }
 
-        const activePairs = chunkIntoPairs(activeStudents);
-        const passivePairs = chunkIntoPairs(passiveStudents, "(Passive)");
-
-        pairs = new Array(36).fill(null);
-
-        let deskIndex = 0;
-        activePairs.forEach(pair => {
-            if (deskIndex < 36) {
-                pairs[deskIndex] = pair;
-                deskIndex++;
+        function handleManualEdit(e) {
+            const deskIndex = parseInt(e.currentTarget.getAttribute('data-index'));
+            const rowNum = Math.floor(deskIndex / 3) + 1;
+            const colNum = (deskIndex % 3) + 1;
+            
+            // Get current names in cell if any exist
+            let currentName1 = "";
+            let currentName2 = "";
+            if (savedPairsData[deskIndex]) {
+                currentName1 = savedPairsData[deskIndex][0] || "";
+                currentName2 = savedPairsData[deskIndex][1] || "";
             }
-        });
 
-        let backDeskIndex = 35; 
-        passivePairs.reverse().forEach(pair => {
-            while (backDeskIndex >= 0 && pairs[backDeskIndex] !== null) {
-                backDeskIndex--;
+            // Prompt window for overrides
+            let n1 = prompt(`[Row ${rowNum}, Col ${colNum}] Enter Student 1 name:\n(Leave blank or type 'Empty' to clear)`, currentName1);
+            if (n1 === null) return; // Cancel hit
+            
+            let n2 = prompt(`[Row ${rowNum}, Col ${colNum}] Enter Student 2 name:\n(Leave blank or type 'Empty' to clear)`, currentName2);
+            if (n2 === null) return; // Cancel hit
+
+            n1 = n1.trim();
+            n2 = n2.trim();
+
+            // Emit to server architecture
+            socket.emit('manualSeatEdit', {
+                deskIndex: deskIndex,
+                name1: n1 === "" ? null : n1,
+                name2: n2 === "" ? null : n2
+            });
+        }
+
+        function toggleFlip() {
+            isFlipped = !isFlipped;
+            renderGrid();
+        }
+
+        function downloadRoster() {
+            if (currentStudentsList.length === 0) {
+                alert("No students checked in yet!");
+                return;
             }
-            if (backDeskIndex >= 0) {
-                pairs[backDeskIndex] = pair;
-            }
-        });
+            let csvContent = "data:text/csv;charset=utf-8,Student Name,Active Participation\n";
+            currentStudentsList.forEach(student => {
+                let safeName = student.name.replace(/"/g, '""');
+                csvContent += `"${safeName}","${student.choiceText}"\n`;
+            });
+            const dateStr = new Date().toISOString().split('T')[0];
+            const filename = `class_roster_${dateStr}.csv`;
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
 
-        io.emit('updatePairs', pairs);
-        io.emit('updateStudents', students);
-    });
-
-    socket.on('resetClass', () => {
-        students = [];
-        pairs = [];
-        io.emit('updateStudents', students);
-        io.emit('updatePairs', pairs);
-    });
-});
-
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+        function assignPairs() { socket.emit('generatePairs'); }
+        function resetClass() { socket.emit('resetClass'); }
+    </script>
+</body>
+</html>
