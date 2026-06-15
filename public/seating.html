@@ -7,6 +7,8 @@
     <script src="/socket.io/socket.io.js"></script>
     <style>
         body { font-family: system-ui, sans-serif; margin: 20px; background: #f4f6f9; }
+        .controls { margin-bottom: 20px; }
+        button.flip { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; background: #6f42c1; color: white; }
         
         .front-indicator {
             text-align: center;
@@ -17,9 +19,10 @@
             margin-bottom: 20px;
             text-transform: uppercase;
             color: #555;
+            transition: all 0.3s ease;
         }
+        .front-indicator.flipped { background: #343a40; color: #fff; }
 
-        /* 3 Columns Grid Layout */
         .seating-grid { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
@@ -45,47 +48,72 @@
 <body>
 
     <h1>Current Seating Arrangement</h1>
-    <p style="color: #666;">This page updates automatically when the instructor assigns seats.</p>
+    
+    <div class="controls">
+        <button class="flip" onclick="toggleFlip()">🔄 Flip View Perspective</button>
+    </div>
 
-    <div class="front-indicator">🎬 FRONT OF ROOM / BOARD 🎬</div>
+    <div class="front-indicator" id="frontIndicator">🎬 FRONT OF ROOM / BOARD 🎬</div>
 
     <div class="seating-grid" id="seatingGrid"></div>
 
     <script>
         const socket = io();
+        let savedPairsData = new Array(36).fill(null);
+        let isFlipped = false; 
 
         socket.on('updatePairs', (pairs) => {
+            savedPairsData = pairs;
+            renderGrid();
+        });
+
+        function renderGrid() {
             const grid = document.getElementById('seatingGrid');
+            const indicator = document.getElementById('frontIndicator');
             grid.innerHTML = ''; 
 
-            // 36 total desks (3 columns x 12 rows)
+            if (isFlipped) {
+                indicator.innerText = "⬇️ FRONT OF ROOM / BOARD IS AT THE BOTTOM ⬇️";
+                indicator.className = "front-indicator flipped";
+            } else {
+                indicator.innerText = "🎬 FRONT OF ROOM / BOARD IS AT THE TOP 🎬";
+                indicator.className = "front-indicator";
+            }
+
             for (let i = 0; i < 36; i++) {
+                let index = isFlipped ? (35 - i) : i;
+
                 const desk = document.createElement('div');
                 desk.className = 'desk-pair';
                 
-                const rowNum = Math.floor(i / 3) + 1;
-                const colNum = (i % 3) + 1;
+                const rowNum = Math.floor(index / 3) + 1;
+                const colNum = (index % 3) + 1;
                 
                 let content = `<h4>Row ${rowNum} - Column ${colNum}</h4>`;
                 
-                if (pairs[i]) {
-                    content += `<div class="student-name">${pairs[i][0]}</div>`;
-                    content += `<div class="student-name">${pairs[i][1]}</div>`;
+                if (savedPairsData[index]) {
+                    content += `<div class="student-name">${savedPairsData[index][0]}</div>`;
+                    content += `<div class="student-name">${savedPairsData[index][1]}</div>`;
                     
-                    if (pairs[i][0].includes('(Passive)') || pairs[i][1].includes('(Passive)')) {
+                    if (savedPairsData[index][0].includes('(Passive)') || savedPairsData[index][1].includes('(Passive)')) {
                         desk.className += ' passive-pair';
                     } else {
                         desk.style.borderColor = '#0070f3';
                     }
                 } else {
-                    content += `<div style="color: #ccc; font-style: italic; font-size: 13px;">Empty</div>`;
+                    content += `<div style="color: #ccc; font-style: italic; font-size: 13px;">Empty Desk</div>`;
                     desk.style.opacity = '0.5';
                 }
                 
                 desk.innerHTML = content;
                 grid.appendChild(desk);
             }
-        });
+        }
+
+        function toggleFlip() {
+            isFlipped = !isFlipped;
+            renderGrid();
+        }
     </script>
 </body>
 </html>
