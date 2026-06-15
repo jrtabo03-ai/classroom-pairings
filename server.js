@@ -24,6 +24,38 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Handle Manual Seating Overrides from Teacher Dashboard
+    socket.on('manualSeatEdit', (data) => {
+        const { deskIndex, name1, name2 } = data;
+        
+        // Initialize pairs array if empty
+        if (pairs.length === 0) {
+            pairs = new Array(36).fill(null);
+        }
+
+        // 1. Update the seating desk arrangement memory
+        if (!name1 && !name2) {
+            pairs[deskIndex] = null; // Desk cleared completely
+        } else {
+            pairs[deskIndex] = [name1 || "Empty", name2 || "Empty"];
+        }
+
+        // 2. Add any newly entered manual names to the master student list for CSV downloads
+        [name1, name2].forEach(name => {
+            if (name && name !== "Empty" && !name.includes("Lone Wolf") && !students.some(s => s.name === name)) {
+                students.push({
+                    name: name,
+                    active: true,
+                    choiceText: 'Manual Add (Active)'
+                });
+            }
+        });
+
+        // 3. Broadcast real-time changes out to both Dashboard and Seating charts
+        io.emit('updatePairs', pairs);
+        io.emit('updateStudents', students);
+    });
+
     socket.on('generatePairs', () => {
         let activeStudents = students.filter(s => s.active);
         let passiveStudents = students.filter(s => !s.active);
