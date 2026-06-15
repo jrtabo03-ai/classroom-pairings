@@ -15,7 +15,6 @@ io.on('connection', (socket) => {
     socket.on('studentJoin', (data) => {
         const { name, active } = data;
         if (name && !students.some(s => s.name === name)) {
-            // Save the exact choice text for the roster download
             students.push({ 
                 name, 
                 active: active === 'yes',
@@ -75,7 +74,6 @@ io.on('connection', (socket) => {
             }
         });
 
-        // Send both the pairs and the raw student list with choices back to the dashboard
         io.emit('updatePairs', pairs);
         io.emit('updateStudents', students);
     });
