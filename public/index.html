@@ -9,6 +9,7 @@
         .controls { margin-bottom: 20px; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; background: #0070f3; color: white; margin-right: 10px;}
         button.reset { background: #ff4d4d; }
+        button.download { background: #28a745; }
         
         .front-indicator {
             text-align: center;
@@ -21,7 +22,6 @@
             color: #555;
         }
 
-        /* 3 Columns Grid Layout */
         .seating-grid { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
@@ -29,7 +29,8 @@
         }
         .desk-pair { 
             background: white; 
-            border: 2px solid #e1e4e8; grade-radius: 8px; 
+            border: 2px solid #e1e4e8; 
+            border-radius: 8px; 
             padding: 15px; 
             text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
@@ -50,6 +51,7 @@
     
     <div class="controls">
         <button onclick="assignPairs()">🎲 Assign Pairs</button>
+        <button class="download" onclick="downloadRoster()">📥 Download Roster (CSV)</button>
         <button class="reset" onclick="resetClass()">🧹 Clear All</button>
     </div>
 
@@ -61,8 +63,10 @@
 
     <script>
         const socket = io();
+        let currentStudentsList = [];
 
         socket.on('updateStudents', (students) => {
+            currentStudentsList = students;
             document.getElementById('count').innerText = students.length;
         });
 
@@ -70,7 +74,6 @@
             const grid = document.getElementById('seatingGrid');
             grid.innerHTML = ''; 
 
-            // 36 total desks (3 columns x 12 rows)
             for (let i = 0; i < 36; i++) {
                 const desk = document.createElement('div');
                 desk.className = 'desk-pair';
@@ -84,7 +87,6 @@
                     content += `<div class="student-name">${pairs[i][0]}</div>`;
                     content += `<div class="student-name">${pairs[i][1]}</div>`;
                     
-                    // Style passive pairs sitting at the back
                     if (pairs[i][0].includes('(Passive)') || pairs[i][1].includes('(Passive)')) {
                         desk.className += ' passive-pair';
                     } else {
@@ -99,6 +101,36 @@
                 grid.appendChild(desk);
             }
         });
+
+        function downloadRoster() {
+            if (currentStudentsList.length === 0) {
+                alert("No students checked in yet!");
+                return;
+            }
+
+            // Create CSV headers and rows
+            let csvContent = "data:text/csv;charset=utf-8,Student Name,Active Participation\n";
+            
+            currentStudentsList.forEach(student => {
+                // Sanitize potential commas in names to keep CSV formatting intact
+                let safeName = student.name.replace(/"/g, '""');
+                csvContent += `"${safeName}","${student.choiceText}"\n`;
+            });
+
+            // Generate a filename with today's date
+            const dateStr = new Date().toISOString().split('T')[0];
+            const filename = `class_roster_${dateStr}.csv`;
+
+            // Trigger browser download link
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            
+            link.click();
+            document.body.removeChild(link);
+        }
 
         function assignPairs() { socket.emit('generatePairs'); }
         function resetClass() { socket.emit('resetClass'); }
