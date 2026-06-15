@@ -12,22 +12,23 @@ io.on('connection', (socket) => {
     socket.emit('updateStudents', students);
     socket.emit('updatePairs', pairs);
 
-    // Receive name and participation preference
     socket.on('studentJoin', (data) => {
         const { name, active } = data;
-        // Prevent duplicate names
         if (name && !students.some(s => s.name === name)) {
-            students.push({ name, active: active === 'yes' });
+            // Save the exact choice text for the roster download
+            students.push({ 
+                name, 
+                active: active === 'yes',
+                choiceText: active === 'yes' ? 'Yes (Active)' : 'No (Passive)'
+            });
             io.emit('updateStudents', students);
         }
     });
 
     socket.on('generatePairs', () => {
-        // 1. Separate students based on participation
         let activeStudents = students.filter(s => s.active);
         let passiveStudents = students.filter(s => !s.active);
 
-        // Helper function to shuffle an array
         const shuffle = (array) => {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -36,11 +37,9 @@ io.on('connection', (socket) => {
             return array;
         };
 
-        // 2. Shuffle both groups independently
         activeStudents = shuffle(activeStudents);
         passiveStudents = shuffle(passiveStudents);
 
-        // Helper function to turn a list of students into pairs
         const chunkIntoPairs = (studentList, labelSuffix = "") => {
             let chunked = [];
             for (let i = 0; i < studentList.length; i += 2) {
@@ -56,11 +55,8 @@ io.on('connection', (socket) => {
         const activePairs = chunkIntoPairs(activeStudents);
         const passivePairs = chunkIntoPairs(passiveStudents, "(Passive)");
 
-        // 3. Arrange seating array: Active pairs first, Passive pairs at the very end
-        // Total desks = 3 columns * 12 rows = 36 desks
         pairs = new Array(36).fill(null);
 
-        // Place active pairs starting from Desk 1 (Front)
         let deskIndex = 0;
         activePairs.forEach(pair => {
             if (deskIndex < 36) {
@@ -69,10 +65,8 @@ io.on('connection', (socket) => {
             }
         });
 
-        // Place passive pairs starting from the very last desk, moving backward
         let backDeskIndex = 35; 
         passivePairs.reverse().forEach(pair => {
-            // Find the next available empty desk from the back
             while (backDeskIndex >= 0 && pairs[backDeskIndex] !== null) {
                 backDeskIndex--;
             }
@@ -81,7 +75,9 @@ io.on('connection', (socket) => {
             }
         });
 
+        // Send both the pairs and the raw student list with choices back to the dashboard
         io.emit('updatePairs', pairs);
+        io.emit('updateStudents', students);
     });
 
     socket.on('resetClass', () => {
@@ -92,7 +88,7 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
