@@ -106,7 +106,6 @@
                 const desk = document.createElement('div');
                 desk.className = 'desk-pair';
                 
-                // Attach custom dataset index tracking to capture target on double click
                 desk.setAttribute('data-index', index);
                 desk.ondblclick = handleManualEdit;
                 
@@ -139,7 +138,6 @@
             const rowNum = Math.floor(deskIndex / 3) + 1;
             const colNum = (deskIndex % 3) + 1;
             
-            // Get current names in cell if any exist
             let currentName1 = "";
             let currentName2 = "";
             if (savedPairsData[deskIndex]) {
@@ -147,17 +145,15 @@
                 currentName2 = savedPairsData[deskIndex][1] || "";
             }
 
-            // Prompt window for overrides
             let n1 = prompt(`[Row ${rowNum}, Col ${colNum}] Enter Student 1 name:\n(Leave blank or type 'Empty' to clear)`, currentName1);
-            if (n1 === null) return; // Cancel hit
+            if (n1 === null) return; 
             
             let n2 = prompt(`[Row ${rowNum}, Col ${colNum}] Enter Student 2 name:\n(Leave blank or type 'Empty' to clear)`, currentName2);
-            if (n2 === null) return; // Cancel hit
+            if (n2 === null) return; 
 
             n1 = n1.trim();
             n2 = n2.trim();
 
-            // Emit to server architecture
             socket.emit('manualSeatEdit', {
                 deskIndex: deskIndex,
                 name1: n1 === "" ? null : n1,
@@ -175,20 +171,30 @@
                 alert("No students checked in yet!");
                 return;
             }
-            let csvContent = "data:text/csv;charset=utf-8,Student Name,Active Participation\n";
+
+            let csvText = "Student Name,Active Participation\n";
             currentStudentsList.forEach(student => {
                 let safeName = student.name.replace(/"/g, '""');
-                csvContent += `"${safeName}","${student.choiceText}"\n`;
+                csvText += `"${safeName}","${student.choiceText}"\n`;
             });
+
+            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            const blob = new Blob([bom, csvText], { type: "text/csv;charset=utf-8;" });
+
             const dateStr = new Date().toISOString().split('T')[0];
             const filename = `class_roster_${dateStr}.csv`;
-            const encodedUri = encodeURI(csvContent);
+
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", filename);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            if (navigator.msSaveBlob) { 
+                navigator.msSaveBlob(blob, filename);
+            } else {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
         }
 
         function assignPairs() { socket.emit('generatePairs'); }
