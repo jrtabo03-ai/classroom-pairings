@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Check-In</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fafafa;}
+        .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0 25px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; background: white;}
+        label { font-weight: bold; display: block; text-align: left; color: #444; }
+        button { width: 100%; padding: 12px; background: #0070f3; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #005bb5; }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="formContainer">
+        <h2>Class Check-In</h2>
+        
+        <label for="studentName">Name</label>
+        <input type="text" id="studentName" list="rosterCandidates" placeholder="Type first letter or Kanji..." autocomplete="off" required>
+        
+        <datalist id="rosterCandidates">
+            <option value="Ayaka Osawa" label="大澤綾佳 おおさわあやか ｵｵｻﾜｱﾔｶ ayaka osawa osawa ayaka"></option>
+            <option value="Soma Noie" label="野家颯馬 のいえそうま ﾉｲｴｿｳﾏ soma noie noie soma"></option>
+            <option value="Ryunosuke Aoyama" label="青山竜之介 あおやまりゅうのすけ ｱｵﾔﾏﾘｭｳﾉｽｹ ryunosuke aoyama aoyama ryunosuke"></option>
+            <option value="Tomoka Sugiura" label="杉浦朋花 すぎうらともか ｽｷﾞｳﾗﾄﾓｶ tomoka sugiura sugiura tomoka"></option>
+            <option value="Luis Eduardo Nakamura Maciel" label="ナカムラマシエル ルイスエドアルド なかむらましえるるいすえどあるど ﾅｶﾑﾗﾏｼｴﾙﾙｲｽｴﾄﾞｱﾙﾄﾞ luis eduardo nakamura maciel nakamura maciel luis eduardo"></option>
+            <option value="Hiroki Funamizu" label="船水大揮 ふなみずひろき ﾌﾅﾐｽﾞﾋﾛｷ hiroki funamizu funamizu hiroki"></option>
+            <option value="Haruhito Yoshida" label="吉田悠人 よしだはるひと ﾖｼﾀﾞﾊﾙﾋﾄ haruhito yoshida yoshida haruhito"></option>
+            <option value="Hisato Sakurai" label="櫻井榮人 さくらいひさと ｻｸﾗｲﾋｻﾄ hisato sakurai sakurai hisato"></option>
+            <option value="Yuri Higuchi" label="樋口悠吏 ひぐちゆうり ﾋｸﾞﾁﾕｳﾘ yuri higuchi higuchi yuri"></option>
+            <option value="Reo Maeda" label="前田玲旺 まえだれお ﾏｴﾀﾞﾚｵ reo maeda maeda reo"></option>
+            <option value="Miyu Kubo" label="久保美優 くぼみゆう ｸﾎﾞﾐﾕｳ miyu kubo kubo miyu"></option>
+            <option value="Koki Yokoo" label="横尾幸樹 よこおこうき ﾖｺｵｺｳｷ koki yokoo yokoo koki"></option>
+            <option value="Alex Satake" label="佐竹慧皇 さたけあれっくす ｻﾀｹｱﾚｯｸｽ alex satake satake alex"></option>
+            <option value="Kazuki Hayashi" label="林和輝 はやかずき ﾊﾔｼｶｽﾞｷ kazuki hayashi hayashi kazuki"></option>
+            <option value="Shion Kakihara" label="柿原獅音 かきはらしおん ｶｷﾊﾗｼｵﾝ shion kakihara kakihara shion"></option>
+            <option value="Seigo Chiba" label="千葉征剛 ちばせいごう ﾁﾊﾞｾｲｺﾞｳ seigo chiba chiba seigo"></option>
+            <option value="Shutaro Noguchi" label="野口修太郎 のぐちしゅうたろう ﾉｸﾞﾁｼｭｳﾀﾛｳ shutaro noguchi noguchi shutaro"></option>
+            <option value="Haku Oonuma" label="大沼珀琥 おおぬまはく ｵｵﾇﾏﾊｸ haku oonuma oonuma haku"></option>
+            <option value="Sayo Aikawa" label="相川沙葉 あいかわさよ ｱｲｶﾜｻﾖ sayo aikawa aikawa sayo"></option>
+            <option value="Shiho Takamoto" label="高本志歩 たかもとしほ ﾀｶﾓﾄｼﾎ shiho takamoto takamoto shiho"></option>
+            <option value="Yuna Shiono" label="塩野由那 しおのゆな ｼｵﾉﾕﾅ yuna shiono shiono yuna"></option>
+            <option value="Phat Loc Vo" label="VO PHAT LOC ヴォファットロック ｳﾞｫﾌｧｯﾄﾛｯｸ phat loc vo vo phat loc"></option>
+            <option value="Muhammad Zikry Danish Bin Md Zainuri" label="MUHAMMAD ZIKRY DANISH BIN MD ZAINURI ザイヌリジクリダニッシュ ｻﾞｲﾇﾘｼﾞｸﾘﾀﾞﾆｯｼｭ muhammad zikry danish bin md zainuri zainuri zikry danish"></option>
+            <option value="Sota Yabushita" label="藪下颯太 やぶしたそうた ﾔﾌﾞｼﾀｿｳﾀ sota yabushita yabushita sota"></option>
+            <option value="Sota Fujino" label="藤野爽汰 ふじのそうた ﾌｼﾞﾉｿｳﾀ sota fujino fujino sota"></option>
+            <option value="Kurea Kariya" label="狩谷空玲碧 かりやくれあ ｶﾘﾔｸﾚｱ kurea kariya kariya kurea"></option>
+            <option value="Kei Kato" label="加藤慧 かとうけい ｶﾄｳｹｲ kei kato kato kei"></option>
+            <option value="Rintaro Kurohata" label="黒畑凛太郎 くろはたりんたろう ｸﾛﾊﾀﾘﾝﾀﾛｳ rintaro kurohata kurohata rintaro"></option>
+            <option value="Sakurako Muto" label="武藤桜子 むとうさくらこ ﾑﾄｳｻｸﾗｺ sakurako muto muto sakurako"></option>
+            <option value="Masaya Yamazaki" label="山崎政弥 やまざきまさや ﾔﾏｻﾞｷﾏｻﾔ masaya yamazaki yamazaki masaya"></option>
+            <option value="Kaito Iizuka" label="飯塚海斗 いいづかかいと ｲｲﾂﾞｶｶｲﾄ kaito iizuka iizuka kaito"></option>
+            <option value="Haruna Okawara" label="大河原春菜 おおかわらはるな ｵｵｶﾜﾗﾊﾙﾅ haruna okawara okawara haruna"></option>
+            <option value="Ayaka Nagumo" label="南雲綾香 なぐもあやか ﾅｸﾞﾓｱﾔｶ ayaka nagumo nagumo ayaka"></option>
+            <option value="Rio Miyagawa" label="宮川莉央 みやがわりお ﾐﾔｶﾞﾜﾘｵ rio miyagawa miyagawa rio"></option>
+            <option value="Sana Horikoshi" label="堀越咲菜 ほりこしさな ﾎﾘｺｼｻﾅ sana horikoshi horikoshi sana"></option>
+            <option value="Kanako Narita" label="成田加奈子 なりたかなこ ﾅﾘﾀｶﾅｺ kanako narita narita kanako"></option>
+            <option value="Yusuke Shibata" label="柴田悠佑 しばたゆうすけ ｼﾊﾞﾀﾕｳｽｹ yusuke shibata shibata yusuke"></option>
+            <option value="Yamato Kakese" label="欠瀬大和 かけせやまと ｶｹｾﾔﾏﾄ yamato kakese kakese yamato"></option>
+            <option value="Iyuni Hansa Jayasinghe" label="ジャヤシンハイユニイハンサー じゃやしんはいゆにいはんさー ｼﾞｬﾔｼﾝﾊｲﾕﾆｲﾊﾝｻｰ iyuni hansa jayasinghe jayasinghe iyuni hansa"></option>
+            <option value="Yuna Kato" label="加藤優奈 かとうゆうな ｶﾄｳﾕｳﾅ yuna kato kato yuna"></option>
+            <option value="Atsuki Hoshino" label="星野敦希 ほしのあつき ﾎｼﾉｱﾂｷ atsuki hoshino hoshino atsuki"></option>
+            <option value="Maho Ishikawa" label="石川眞帆 いしかわまほ ｲｼｶﾜﾏﾎ maho ishikawa ishikawa maho"></option>
+            <option value="Rei Hosokawa" label="細川怜 ほそかわれい ﾎｿｶﾜﾚｲ rei hosokawa hosokawa rei"></option>
+            <option value="Ayari Torisawa" label="鳥澤彩理 とりさわあやり ﾄﾘｻﾜｱﾔﾘ ayari torisawa torisawa ayari"></option>
+            <option value="Soshi Kiyoto" label="清都壮士 きよとそうし ｷﾖﾄｿｳｼ soshi kiyoto kiyoto soshi"></option>
+            <option value="Suzuka Yamada" label="山田鈴華 やまだすずか ﾔﾏﾀﾞｽｽﾞｶ suzuka yamada yamada suzuka"></option>
+            <option value="Miyu Tomioka" label="冨岡心結 とみおかみゆ ﾄﾐｵｶﾐﾕ miyu tomioka tomioka miyu"></option>
+            <option value="Seina Kurosaki" label="黒崎聖菜 くろさきせいな ｸﾛｻｷｾｲﾅ seina kurosaki kurosaki seina"></option>
+            <option value="Yuki Okada" label="岡田佑樹 おかだゆうき ｵｶﾀﾞﾕｳｷ yuki okada okada yuki"></option>
+            <option value="Shiina Higuchi" label="樋口椎菜 ひぐちしいな ﾋｸﾞﾁｼｲﾅ shiina higuchi higuchi shiina"></option>
+            <option value="Kido Naito" label="内藤希道 ないとうきどう ﾅｲﾄｳｷﾄﾞｳ kido naito naito kido"></option>
+        </datalist>
+
+        <button onclick="submitName()">Join Class</button>
+    </div>
+
+    <script>
+        const socket = io();
+        function submitName() {
+            const name = document.getElementById('studentName').value.trim();
+            
+            if (name) {
+                socket.emit('studentJoin', { name: name, active: 'yes' });
+                
+                document.getElementById('formContainer').innerHTML = `
+                <h2>🎉 Checked In!</h2>
+                <p>Welcome! Your seat will be assigned shortly.</p>
+                <br>
+                <a href="/seating.html" style="display: block; padding: 12px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    👀 View Seating Chart
+                </a>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
