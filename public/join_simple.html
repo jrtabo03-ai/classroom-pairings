@@ -8,7 +8,9 @@
     <style>
         body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fafafa;}
         .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0 25px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; background: white;}
+        input { width: 100%; padding: 12px; margin: 10px 0 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; background: white;}
+        .hint { font-size: 12px; color: #888; text-align: left; margin-bottom: 20px; }
+        .error-msg { color: #d93025; font-size: 13px; margin-bottom: 15px; display: none; font-weight: bold; }
         label { font-weight: bold; display: block; text-align: left; color: #444; }
         button { width: 100%; padding: 12px; background: #0070f3; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold; }
         button:hover { background: #005bb5; }
@@ -20,7 +22,9 @@
         <h2>Class Check-In</h2>
         
         <label for="studentName">Name</label>
-        <input type="text" id="studentName" list="rosterCandidates" placeholder="Type first letter or Kanji..." autocomplete="off" required>
+        <input type="text" id="studentName" list="rosterCandidates" placeholder="Start typing your name..." autocomplete="off" required>
+        <div class="hint">⚠️ You must select your matching name from the suggestions.</div>
+        <div class="error-msg" id="errorMsg">Please select a valid name from the list.</div>
         
         <datalist id="rosterCandidates">
             <option value="Ayaka Osawa" label="大澤綾佳 おおさわあやか ｵｵｻﾜｱﾔｶ ayaka osawa osawa ayaka"></option>
@@ -81,21 +85,38 @@
 
     <script>
         const socket = io();
+
+        // Build a set of all valid exact values from the datalist
+        const validOptions = Array.from(document.querySelectorAll('#rosterCandidates option')).map(opt => opt.value);
+
         function submitName() {
-            const name = document.getElementById('studentName').value.trim();
+            const inputField = document.getElementById('studentName');
+            const errorElement = document.getElementById('errorMsg');
+            const name = inputField.value.trim();
             
-            if (name) {
-                socket.emit('studentJoin', { name: name, active: 'yes' });
-                
-                document.getElementById('formContainer').innerHTML = `
-                <h2>🎉 Checked In!</h2>
-                <p>Welcome! Your seat will be assigned shortly.</p>
-                <br>
-                <a href="/seating.html" style="display: block; padding: 12px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                    👀 View Seating Chart
-                </a>
-                `;
+            // Check if what they typed exists in the official roster list
+            if (!validOptions.includes(name)) {
+                errorElement.style.display = 'block';
+                inputField.style.borderColor = '#d93025';
+                inputField.value = '';
+                inputField.focus();
+                return;
             }
+
+            errorElement.style.display = 'none';
+            inputField.style.borderColor = '#ccc';
+
+            socket.emit('studentJoin', { name: name, active: 'yes' });
+            
+            document.getElementById('formContainer').innerHTML = `
+            <h2>🎉 Checked In!</h2>
+            <p>Welcome, <b>${name}</b>!</p>
+            <p>Your seat will be assigned shortly.</p>
+            <br>
+            <a href="/seating.html" style="display: block; padding: 12px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                👀 View Seating Chart
+            </a>
+            `;
         }
     </script>
 </body>
